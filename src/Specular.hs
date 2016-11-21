@@ -22,8 +22,7 @@ ideal_specular_transmit d n nout nin = let dRe = (ideal_specular_reflect d n)
                                            cos_theta = (dot_v3v3 d nl)
                                            cos2_phi = ((-) 1.0 ((*) ((*) nn nn) ((-) 1.0 ((*) cos_theta cos_theta))))
                                            in case ((<) cos2_phi 0.0) of
-                                                    True -> do
-                                                                (return (dRe, 1.0))
+                                                    True -> (return (dRe, 1.0))
                                                     _    -> do
                                                                 let dTr = (normalize_v3 (sub_v3v3 (mul_dv3 nn d) (mul_v3d nl ((+) ((*) nn cos_theta) (sqrt cos2_phi)))))
                                                                 let c = if out_to_in then ((+) 1.0 cos_theta) else ((-) 1.0 (dot_v3v3 dTr n))
@@ -31,5 +30,5 @@ ideal_specular_transmit d n nout nin = let dRe = (ideal_specular_reflect d n)
                                                                 let prRe = ((+) 0.25 ((*) 0.5 re))
                                                                 u <- (uniform_float)
                                                                 if ((<) u prRe)
-                                                                then (return (dRe, ((/) re prRe)))
-                                                                else (return (dTr, ((/) ((-) 1.0 re) ((-) 1.0 prRe))))
+                                                                    then (return (dRe, ((/) re prRe)))
+                                                                    else (return (dTr, ((/) ((-) 1.0 re) ((-) 1.0 prRe))))

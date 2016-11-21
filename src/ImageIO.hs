@@ -15,12 +15,19 @@ write_ppm :: Int -> Int -> [Vector3] -> String -> IO ()
 write_ppm width height ls fname = withFile fname WriteMode $ \handle -> do
                                     let header = (printf "P3\n%d %d\n255\n" width height)
                                         in case ls of
-                                           [] -> (hPutStr handle header)
-                                           _  -> (seq (hPutStr handle header) (write_ppm_Ls handle ls))
+                                           [] -> do
+                                                    (hPutStr handle header)
+                                           _  -> do
+                                                    (hPutStr handle header)
+                                                    (write_ppm_Ls handle ls)
 
 write_ppm_Ls :: Handle -> [Vector3] -> IO ()
 write_ppm_Ls handle (head:[]) = write_ppm_L handle head
-write_ppm_Ls handle (head:tail) = (seq (seq (write_ppm_L handle head) (hPutStr handle " ")) (write_ppm_Ls handle tail))
+write_ppm_Ls handle (head:tail) = do 
+                                    (write_ppm_L handle head)
+                                    (hPutStr handle " ")
+                                    (write_ppm_Ls handle tail)
 
 write_ppm_L :: Handle -> Vector3 -> IO ()
-write_ppm_L handle (Vector3 x y z) = hPutStr handle (printf "%d %d %d" (to_byte x (gamma)) (to_byte y (gamma)) (to_byte z (gamma)))
+write_ppm_L handle (Vector3 x y z) = do
+                                        (hPutStr handle (printf "%d %d %d" (to_byte x (gamma)) (to_byte y (gamma)) (to_byte z (gamma))))

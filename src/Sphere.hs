@@ -3,6 +3,9 @@ module Sphere where
 import Vector3(Vector3(Vector3), sub_v3v3, dot_v3v3)
 import Ray(Ray(Ray))
 
+epsilon_sphere :: Double
+epsilon_sphere = 1.0e-4
+
 data ReflectionType = Diffuse | Specular | Refractive
 
 data Sphere = Sphere Double Vector3 Vector3 Vector3 ReflectionType
@@ -25,7 +28,7 @@ get_sphere_reflection_type (Sphere _ _ _ _ rt) = rt
 intersect_sphere :: Sphere -> Ray -> (Bool, Double)
 intersect_sphere (Sphere r p _ _ _) (Ray o d tmin tmax _) = let op = (sub_v3v3 p o)
                                                                 dop = (dot_v3v3 d op)
-                                                                discriminant = ((-) ((*) dop dop) ((+) (dot_v3v3 op op) ((*) r r)))
+                                                                discriminant = ((+) ((-) ((*) dop dop) (dot_v3v3 op op)) ((*) r r))
                                                                 in case ((<) discriminant 0.0) of
                                                                     True -> (False, 0.0)
                                                                     _    -> let sdiscriminant = (sqrt discriminant)
