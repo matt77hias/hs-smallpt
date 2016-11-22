@@ -20,4 +20,4 @@ get_ray_depth :: Ray -> Int
 get_ray_depth (Ray _ _ _ _ depth) = depth
 
 eval_ray :: Ray -> Double -> Vector3
-eval_ray (Ray o d _ _ _) t = (add_v3v3 o (mul_v3d d t))
+eval_ray (Ray o d _ _ _) t = add_v3v3 o (mul_v3d d t)
