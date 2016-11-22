@@ -1,5 +1,5 @@
 {-# LANGUAGE Strict #-}
-module SmallPT where
+module Main where
 
 import System.Environment(getArgs)
 import Text.Printf(printf)
