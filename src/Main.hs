@@ -1,6 +1,8 @@
 {-# LANGUAGE Strict #-}
 module Main where
 
+import Control.Monad.Primitive (PrimMonad, PrimState)
+import qualified Data.Vector.Mutable as M
 import System.Environment(getArgs)
 import Text.Printf(printf)
 
@@ -13,11 +15,6 @@ import Sampling
 import ImageIO
 
 import Specular
-
-replace_nth :: Int -> a -> [a] -> [a]
-replace_nth n v (x:xs)
-    | (n == 0) = v:xs
-    | otherwise = x:(replace_nth (n - 1) v xs)
 
 -- Scene
 refractive_index_out :: Double
@@ -137,45 +134,49 @@ get_nb_samples =
             else let first = read (args !! 0) :: Int
                      in return $ quot first 4
 
-loop_main :: [Sphere] -> Camera -> Int -> Int -> Int -> IO [Vector3]
+loop_main :: [Sphere] -> Camera -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3)
 loop_main scene cam height width smax =
-    let ls = return $ replicate (width * height) (Vector3 0.0 0.0 0.0)
-        in loop_y scene cam 0 height width smax ls
+    do
+        let ls = M.replicate (width * height) (Vector3 0.0 0.0 0.0)
+        loop_y scene cam 0 height width smax ls
+        ls
 
-loop_y :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> IO [Vector3] -> IO [Vector3]
-loop_y scene cam y height width smax ls0 =
+loop_y :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_y scene cam y height width smax ls =
     if (y == height)
-        then ls0
+        then return ()
         else do 
                 putStr $ printf "Rendering (%d spp) %.2f\r" (smax * 4) ((100.0 * (realToFrac y) / (realToFrac (height - 1))) :: Float)
-                let ls1 = loop_x scene cam y height 0 width smax ls0
-                loop_y scene cam (y + 1) height width smax ls1
+                loop_x scene cam y height 0 width smax ls
+                loop_y scene cam (y + 1) height width smax ls
 
-loop_x :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> IO [Vector3] -> IO [Vector3]
-loop_x scene cam y height x width smax ls0 =
+loop_x :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_x scene cam y height x width smax ls =
     if (x == width)
-        then ls0
-        else let ls1 = loop_sy scene cam y height x width 0 smax ls0
-                 in loop_x scene cam y height (x + 1) width smax ls1
+        then return ()
+        else do
+                loop_sy scene cam y height x width 0 smax ls
+                loop_x scene cam y height (x + 1) width smax ls
 
-loop_sy :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> IO [Vector3] -> IO [Vector3]
-loop_sy scene cam y height x width sy smax ls0 =
+loop_sy :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_sy scene cam y height x width sy smax ls =
     if (sy == 2)
-        then ls0
-        else let ls1 = (loop_sx scene cam y height x width sy 0 smax ls0)
-                 in loop_sy scene cam y height x width (sy + 1) smax ls1
+        then return ()
+        else do 
+                loop_sx scene cam y height x width sy 0 smax ls
+                loop_sy scene cam y height x width (sy + 1) smax ls
 
-loop_sx :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IO [Vector3] -> IO [Vector3]
-loop_sx scene cam y height x width sy sx smax ls0 =
+loop_sx :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_sx scene cam y height x width sy sx smax ls =
     if (sx == 2)
-        then ls0
+        then return ()
         else do
                 _l0 <- loop_s scene cam y height x width sy sx 0 smax (return (Vector3 0.0 0.0 0.0))
-                ls <- ls0
+                _ls <- ls
                 let index = (height - 1 - y) * width + x
                     l1 = mul_v3d (clamp_v3 _l0 0.0 1.0) 0.25
-                    ls1 = replace_nth index l1 ls
-                loop_sx scene cam y height x width sy (sx + 1) smax (return ls1)
+                M.write _ls index l1
+                loop_sx scene cam y height x width sy (sx + 1) smax ls
 
 loop_s :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IO Vector3 -> IO Vector3
 loop_s scene cam y height x width sy sx s smax l0 =
