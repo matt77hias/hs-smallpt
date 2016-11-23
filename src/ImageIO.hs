@@ -38,4 +38,4 @@ write_ppm_Ls handle index size ls =
 write_ppm_L :: Handle -> Vector3 -> IO ()
 write_ppm_L handle (Vector3 x y z) =
     do
-        hPutStr handle $ printf "%d %d %d" (to_byte x (gamma)) (to_byte y (gamma)) (to_byte z (gamma))
+        hPutStr handle $ printf "%d %d %d" (to_byte x gamma) (to_byte y gamma) (to_byte z gamma)
