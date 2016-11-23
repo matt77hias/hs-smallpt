@@ -137,11 +137,11 @@ get_nb_samples =
 loop_main :: [Sphere] -> Camera -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3)
 loop_main scene cam height width smax =
     do
-        let ls = M.replicate (width * height) (Vector3 0.0 0.0 0.0)
+        ls <- M.replicate (width * height) (Vector3 0.0 0.0 0.0)
         loop_y scene cam 0 height width smax ls
-        ls
+        return ls
 
-loop_y :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_y :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> (M.MVector (PrimState IO) Vector3) -> IO ()
 loop_y scene cam y height width smax ls =
     if (y == height)
         then return ()
@@ -150,7 +150,7 @@ loop_y scene cam y height width smax ls =
                 loop_x scene cam y height 0 width smax ls
                 loop_y scene cam (y + 1) height width smax ls
 
-loop_x :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_x :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> (M.MVector (PrimState IO) Vector3) -> IO ()
 loop_x scene cam y height x width smax ls =
     if (x == width)
         then return ()
@@ -158,7 +158,7 @@ loop_x scene cam y height x width smax ls =
                 loop_sy scene cam y height x width 0 smax ls
                 loop_x scene cam y height (x + 1) width smax ls
 
-loop_sy :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_sy :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> (M.MVector (PrimState IO) Vector3) -> IO ()
 loop_sy scene cam y height x width sy smax ls =
     if (sy == 2)
         then return ()
@@ -166,26 +166,27 @@ loop_sy scene cam y height x width sy smax ls =
                 loop_sx scene cam y height x width sy 0 smax ls
                 loop_sy scene cam y height x width (sy + 1) smax ls
 
-loop_sx :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IO (M.MVector (PrimState IO) Vector3) -> IO ()
+loop_sx :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> (M.MVector (PrimState IO) Vector3) -> IO ()
 loop_sx scene cam y height x width sy sx smax ls =
     if (sx == 2)
         then return ()
         else do
-                _l0 <- loop_s scene cam y height x width sy sx 0 smax (return (Vector3 0.0 0.0 0.0))
-                _ls <- ls
+                l0 <- loop_s scene cam y height x width sy sx 0 smax (Vector3 0.0 0.0 0.0)
                 let index = (height - 1 - y) * width + x
-                    l1 = mul_v3d (clamp_v3 _l0 0.0 1.0) 0.25
-                M.write _ls index l1
+                    l1 = mul_v3d (clamp_v3 l0 0.0 1.0) 0.25
+                l2 <- M.read ls index
+                M.write ls index (add_v3v3 l2 l1)
                 loop_sx scene cam y height x width sy (sx + 1) smax ls
 
-loop_s :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IO Vector3 -> IO Vector3
+loop_s :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Vector3 -> IO Vector3
 loop_s scene cam y height x width sy sx s smax l0 =
     if (s == smax)
-        then l0
-        else let l1 = do_s scene cam y height x width sy sx smax l0
-             in loop_s scene cam y height x width sy sx (s + 1) smax l1
+        then return l0
+        else do
+                l1 <- do_s scene cam y height x width sy sx smax l0
+                loop_s scene cam y height x width sy sx (s + 1) smax l1
 
-do_s :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> IO Vector3 -> IO Vector3
+do_s :: [Sphere] -> Camera -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Vector3 -> IO Vector3
 do_s scene cam y height x width sy sx smax l0 =
     do 
         let df = \x -> let u = (2.0 * x) in if (u < 1.0) then (sqrt u) - 1.0 else 1.0 - (sqrt (2.0 - u))
@@ -196,6 +197,5 @@ do_s scene cam y height x width sy sx smax l0 =
             direction = add_v3v3 (add_v3v3 (mul_v3d (get_camera_cx cam) coefx) (mul_v3d (get_camera_cy cam) coefy)) (get_camera_gaze cam)
             ndirection = normalize_v3 direction
             neye = add_v3v3 (get_camera_eye cam) (mul_v3d direction 130.0)
-        _l1 <- radiance scene (Ray neye ndirection epsilon_sphere positive_infinity 0)
-        _l0 <- l0
-        return $ add_v3v3 _l0 (div_v3d _l1 (realToFrac smax))
+        l1 <- radiance scene (Ray neye ndirection epsilon_sphere positive_infinity 0)
+        return $ add_v3v3 l0 (div_v3d l1 (realToFrac smax))
